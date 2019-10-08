@@ -13,3 +13,4 @@ bin           = @["muse"]
 # Dependencies
 
 requires "nim >= 1.0.0"
+requires "illwill >= 0.1.0"
