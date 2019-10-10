@@ -1,6 +1,20 @@
 import illwill
-import os, strutils, strformat, osproc
+import os, strutils, strformat, osproc, json
 from sequtils import mapIt
+
+const
+  appName = "muse"
+  confDir = getConfigDir() / appName
+  cmdsFile = confDir / "commands.json"
+
+if not existsDir(confDir):
+  createDir(confDir)
+  let cmds = %* ["echo muse test", "echo muse test2"]
+  writeFile(cmdsFile, $cmds)
+
+if not existsFile(cmdsFile):
+  stderr.writeLine("Please set commands to " & cmdsFile)
+  quit(1)
 
 # 1. Initialise terminal in fullscreen mode and make sure we restore the state
 # of the terminal state when exiting.
@@ -29,13 +43,7 @@ hideCursor()
 # previous frame will be actually printed to the terminal).
 var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
 
-let datas = @[
-  "echo 1",
-  "echo 2",
-  "echo 3",
-  "echo 4",
-  """echo -e '\e[31m unko \e[m geri'"""
-  ]
+let datas = readFile(cmdsFile).parseJson.to(seq[string])
 
 # 3. Display some simple static UI that doesn't change from frame to frame.
 tb.setForegroundColor(fgWhite, true)
