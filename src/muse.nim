@@ -51,11 +51,13 @@ tb.setForegroundColor(fgWhite, true)
 tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
 tb.write(2, 1, "J: Cursor down, K: Cursor up, C: Clear, Q: Exit, Space: Select, Enter: Execute")
 tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
+tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
 
 var pos: int
 var cmdPoses: seq[int]
 
 proc draw =
+  # 選択候補のリストを表示
   for i, data in datas:
     let mark =
       if i in cmdPoses: "* "
@@ -65,10 +67,16 @@ proc draw =
     if i == pos:
       tb.setForegroundColor(fgBlack, true)
       tb.setBackgroundColor(bgGreen)
-      tb.write(2, Natural(i+3), data2)
+      tb.write(2, i+3, data2)
       tb.resetAttributes()
     else:
-      tb.write(2, Natural(i+3), data2)
+      tb.write(2, i+3, data2)
+
+  # 実行するコマンドのリストを表示
+  for i, p in cmdPoses:
+    let data = datas[p]
+    let data2 = $i & " " & data
+    tb.write(2, int(terminalHeight() / 2) + i + 1, data2)
 
 # 4. This is how the main event loop typically looks like: we keep polling for
 # user input (keypress events), do something based on the input, modify the
