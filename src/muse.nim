@@ -28,6 +28,7 @@ proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
   showCursor()
   var status: int
   for cmd in cmds:
+    echo "$ " & cmd
     let (output, exitCode) = execCmdEx(cmd)
     stdout.write output
     status += exitCode
