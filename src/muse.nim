@@ -1,5 +1,6 @@
 import illwill
-import os, strutils, strformat
+import os, strutils, strformat, osproc
+from sequtils import mapIt
 
 # 1. Initialise terminal in fullscreen mode and make sure we restore the state
 # of the terminal state when exiting.
@@ -7,6 +8,16 @@ proc exitProc() {.noconv.} =
   illwillDeinit()
   showCursor()
   quit(0)
+
+proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
+  illwillDeinit()
+  showCursor()
+  var status: int
+  for cmd in cmds:
+    let (output, exitCode) = execCmdEx(cmd)
+    stdout.write output
+    status += exitCode
+  quit(status)
 
 illwillInit(fullscreen=true)
 setControlCHook(exitProc)
@@ -19,25 +30,35 @@ hideCursor()
 var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
 
 let datas = @[
-  "/var/log/syslog",
-  "/var/log/access_log",
-  "/var/log/app.log",
-  "/var/log/err.log",
+  "echo 1",
+  "echo 2",
+  "echo 3",
+  "echo 4",
+  """echo -e '\e[31m unko \e[m geri'"""
   ]
 
 # 3. Display some simple static UI that doesn't change from frame to frame.
-tb.setForegroundColor(fgBlack, true)
+tb.setForegroundColor(fgWhite, true)
 tb.drawRect(0, 0, 40, 5+datas.len)
 tb.drawHorizLine(2, 38, 3, doubleStyle=true)
 
 var pos: int
+var cmdPoses: seq[int]
 
 proc draw =
   for i, data in datas:
+    let mark =
+      if i in cmdPoses: "* "
+      else: "  "
+    let data2 = mark & data
+
     if i == pos:
-      tb.write(2, Natural(i+2), "* " & data)
+      tb.setForegroundColor(fgBlack, true)
+      tb.setBackgroundColor(bgGreen)
+      tb.write(2, Natural(i+2), data2)
+      tb.resetAttributes()
     else:
-      tb.write(2, Natural(i+2), "  " & data)
+      tb.write(2, Natural(i+2), data2)
 
 # 4. This is how the main event loop typically looks like: we keep polling for
 # user input (keypress events), do something based on the input, modify the
@@ -56,8 +77,16 @@ while true:
     dec(pos)
     if pos < 0:
       pos = datas.len - 1
+  of Key.Space:
+    cmdPoses.add(pos)
+  of Key.C:
+    cmdPoses = @[]
+  of Key.Enter:
+    let cmds = cmdPoses.mapIt(datas[it])
+    exitProcExec(cmds)
   else: discard
   draw()
 
   tb.display()
   sleep(20)
+
