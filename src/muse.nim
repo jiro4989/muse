@@ -49,7 +49,7 @@ let datas = readFile(cmdsFile).parseJson.to(seq[string])
 # 3. Display some simple static UI that doesn't change from frame to frame.
 tb.setForegroundColor(fgWhite, true)
 tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
-tb.write(2, 1, "J: Cursor down, K: Cursor up, C: Clear, Q: Exit, Space: Select, Enter: Execute")
+tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
 tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
 tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
 
