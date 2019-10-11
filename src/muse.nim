@@ -132,8 +132,8 @@ proc subCommandAdd(args: seq[string]): int =
 when isMainModule:
   import cligen
   dispatchMulti(
-    [subCommandExec],
-    [subCommandEdit],
-    [subCommandAdd],
+    [subCommandExec, cmdName = "exec"],
+    [subCommandEdit, cmdName = "edit"],
+    [subCommandAdd, cmdName = "add"],
     )
 
