@@ -89,8 +89,20 @@ proc subCommandExec(): int =
     tb.setForegroundColor(fgWhite, true)
     tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
     tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
+
     tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
     tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
+
+    var tabs: seq[string]
+    for i, page in datas:
+      let name = page.name
+      let tab =
+        if i == tabIndex:
+          &"[ * {name} ]"
+        else:
+          &"[   {name} ]"
+      tabs.add(tab)
+    tb.write(2, 2, tabs.join("-"))
 
     let currentCmds = datas[tabIndex].commands
 
