@@ -10,6 +10,10 @@ const
 Copyright (c) 2019 jiro4989
 Released under the MIT License.
 https://github.com/jiro4989/muse"""
+  keyHelps = [
+    "J: Cursor down | K: Cursor up | H: Left tab | L: Right tab",
+    "C: Clear | Q: Exit | Space: Select | Enter: Execute",
+  ]
 
 type
   CommandList = object
@@ -33,7 +37,6 @@ proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
     status += exitCode
   quit(status)
 
-
 var pos: int
 var tabIndex: int
 var cmdStack: seq[string]
@@ -47,16 +50,15 @@ proc draw(tb: var TerminalBuffer, datas: seq[string]) =
     if i == pos:
       tb.setForegroundColor(fgBlack, true)
       tb.setBackgroundColor(bgGreen)
-      tb.write(2, i+3, data2)
+      tb.write(2, i+4, data2)
       tb.resetAttributes()
     else:
-      tb.write(2, i+3, data2)
+      tb.write(2, i+4, data2)
 
   # 実行するコマンドのリストを表示
   for i, data in cmdStack:
     let data2 = $(i+1) & " " & data
     tb.write(2, int(terminalHeight() / 2) + i + 1, data2)
-
 
 proc subCommandExec(): int =
   if not existsDir(confDir):
@@ -88,9 +90,10 @@ proc subCommandExec(): int =
     # 3. Display some simple static UI that doesn't change from frame to frame.
     tb.setForegroundColor(fgWhite, true)
     tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
-    tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
+    for i, help in keyHelps:
+      tb.write(2, i+1, help)
 
-    tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
+    tb.drawHorizLine(1, terminalWidth()-3, keyHelps.len+1, doubleStyle=true)
     tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
 
     var tabs: seq[string]
@@ -102,7 +105,7 @@ proc subCommandExec(): int =
         else:
           &"[   {name} ]"
       tabs.add(tab)
-    tb.write(2, 2, tabs.join("-"))
+    tb.write(2, keyHelps.len+1, tabs.join("-"))
 
     let currentCmds = datas[tabIndex].commands
 
