@@ -41,6 +41,7 @@ proc draw(tb: var TerminalBuffer, datas: seq[string]) =
       else: "  "
     let data2 = mark & data
 
+    tb.resetAttributes()
     if i == pos:
       tb.setForegroundColor(fgBlack, true)
       tb.setBackgroundColor(bgGreen)
