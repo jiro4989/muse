@@ -6,10 +6,15 @@ const
   appName = "muse"
   confDir = getConfigDir() / appName
   cmdsFile = confDir / "commands.json"
-  version = """muse version 0.2.0
+  version = """muse version 0.3.0
 Copyright (c) 2019 jiro4989
 Released under the MIT License.
 https://github.com/jiro4989/muse"""
+
+type
+  CommandList = object
+    name: string
+    commands: seq[string]
 
 # 1. Initialise terminal in fullscreen mode and make sure we restore the state
 # of the terminal state when exiting.
@@ -30,15 +35,13 @@ proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
 
 
 var pos: int
-var cmdPoses: seq[int]
+var tabIndex: int
+var cmdStack: seq[string]
 
 proc draw(tb: var TerminalBuffer, datas: seq[string]) =
   # 選択候補のリストを表示
   for i, data in datas:
-    let mark =
-      if i in cmdPoses: "* "
-      else: "  "
-    let data2 = mark & data
+    let data2 = data
 
     tb.resetAttributes()
     if i == pos:
@@ -50,16 +53,15 @@ proc draw(tb: var TerminalBuffer, datas: seq[string]) =
       tb.write(2, i+3, data2)
 
   # 実行するコマンドのリストを表示
-  for i, p in cmdPoses:
-    let data = datas[p]
-    let data2 = $i & " " & data
+  for i, data in cmdStack:
+    let data2 = $(i+1) & " " & data
     tb.write(2, int(terminalHeight() / 2) + i + 1, data2)
 
 
 proc subCommandExec(): int =
   if not existsDir(confDir):
     createDir(confDir)
-    let cmds = %* ["echo muse test", "echo muse test2"]
+    let cmds = %* [{"name":"nim", "commands":["nim --version", "nimble build", "nimble test"]}]
     writeFile(cmdsFile, $cmds)
 
   if not existsFile(cmdsFile):
@@ -70,7 +72,7 @@ proc subCommandExec(): int =
   setControlCHook(exitProc)
   hideCursor()
 
-  let datas = readFile(cmdsFile).parseJson.to(seq[string])
+  let datas = readFile(cmdsFile).parseJson.to(seq[CommandList])
 
   # 4. This is how the main event loop typically looks like: we keep polling for
   # user input (keypress events), do something based on the input, modify the
@@ -90,27 +92,40 @@ proc subCommandExec(): int =
     tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
     tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
 
+    let currentCmds = datas[tabIndex].commands
+
     var key = getKey()
     case key
     of Key.None: discard
     of Key.Escape, Key.Q: exitProc()
     of Key.J:
       inc(pos)
-      if datas.len <= pos:
+      if currentCmds.len <= pos:
         pos = 0
     of Key.K:
       dec(pos)
       if pos < 0:
-        pos = datas.len - 1
+        pos = currentCmds.len - 1
+    of Key.H:
+      pos = 0
+      dec(tabIndex)
+      if tabIndex < 0:
+        tabIndex = datas.len - 1
+    of Key.L:
+      pos = 0
+      inc(tabIndex)
+      if datas.len <= tabIndex:
+        tabIndex = 0
     of Key.Space:
-      cmdPoses.add(pos)
+      let cmd = currentCmds[pos]
+      cmdStack.add(cmd)
     of Key.C:
-      cmdPoses = @[]
+      cmdStack = @[]
     of Key.Enter:
-      let cmds = cmdPoses.mapIt(datas[it])
-      exitProcExec(cmds)
+      exitProcExec(cmdStack)
     else: discard
-    tb.draw(datas)
+
+    tb.draw(datas[tabIndex].commands)
 
     tb.display()
     sleep(20)
