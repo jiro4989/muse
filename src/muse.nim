@@ -70,26 +70,26 @@ proc subCommandExec(): int =
   setControlCHook(exitProc)
   hideCursor()
 
-  # 2. We will construct the next frame to be displayed in this buffer and then
-  # just instruct the library to display its contents to the actual terminal
-  # (double buffering is enabled by default; only the differences from the
-  # previous frame will be actually printed to the terminal).
-  var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
-
   let datas = readFile(cmdsFile).parseJson.to(seq[string])
-
-  # 3. Display some simple static UI that doesn't change from frame to frame.
-  tb.setForegroundColor(fgWhite, true)
-  tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
-  tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
-  tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
-  tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
 
   # 4. This is how the main event loop typically looks like: we keep polling for
   # user input (keypress events), do something based on the input, modify the
   # contents of the terminal buffer (if necessary), and then display the new
   # frame.
   while true:
+    # 2. We will construct the next frame to be displayed in this buffer and then
+    # just instruct the library to display its contents to the actual terminal
+    # (double buffering is enabled by default; only the differences from the
+    # previous frame will be actually printed to the terminal).
+    var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
+
+    # 3. Display some simple static UI that doesn't change from frame to frame.
+    tb.setForegroundColor(fgWhite, true)
+    tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
+    tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
+    tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
+    tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
+
     var key = getKey()
     case key
     of Key.None: discard
