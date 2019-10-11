@@ -6,7 +6,7 @@ const
   appName = "muse"
   confDir = getConfigDir() / appName
   cmdsFile = confDir / "commands.json"
-  version = """muse version 0.3.0
+  version = """muse version 0.4.0
 Copyright (c) 2019 jiro4989
 Released under the MIT License.
 https://github.com/jiro4989/muse"""
@@ -20,14 +20,14 @@ type
     name: string
     commands: seq[string]
 
-# 1. Initialise terminal in fullscreen mode and make sure we restore the state
-# of the terminal state when exiting.
 proc exitProc() {.noconv.} =
+  ## 終了処理
   illwillDeinit()
   showCursor()
   quit(0)
 
-proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
+proc execCommands(cmds: seq[string]) {.noconv.} =
+  ## 終了処理を行うが、最後にコマンドを実行する
   illwillDeinit()
   showCursor()
   var status: int
@@ -37,110 +37,137 @@ proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
     status += exitCode
   quit(status)
 
-var pos: int
-var tabIndex: int
-var cmdStack: seq[string]
+proc drawTabArea(tb: var TerminalBuffer, y, tabIndex: int, datas: seq[CommandList]) =
+  var tabs: seq[string]
+  for i, page in datas:
+    let name = page.name
+    let tab =
+      if i == tabIndex:
+        &"[ * {name} ]"
+      else:
+        &"[   {name} ]"
+    tabs.add(tab)
+  tb.write(2, y, tabs.join("-"))
 
-proc draw(tb: var TerminalBuffer, datas: seq[string]) =
+proc drawSelectionArea(tb: var TerminalBuffer, y: int, pos: int, datas: seq[string]) =
   # 選択候補のリストを表示
   for i, data in datas:
     let data2 = data
 
-    tb.resetAttributes()
     if i == pos:
       tb.setForegroundColor(fgBlack, true)
       tb.setBackgroundColor(bgGreen)
-      tb.write(2, i+4, data2)
-      tb.resetAttributes()
+      tb.write(2, y+i, data2)
     else:
-      tb.write(2, i+4, data2)
+      tb.write(2, y+i, data2)
+    tb.resetAttributes()
 
-  # 実行するコマンドのリストを表示
-  for i, data in cmdStack:
+proc drawCommandStackArea(tb: var TerminalBuffer, y: int, datas: seq[string]) =
+  ## 実行するコマンドのリストを表示
+  for i, data in datas:
     let data2 = $(i+1) & " " & data
-    tb.write(2, int(terminalHeight() / 2) + i + 1, data2)
+    tb.write(2, y+i, data2)
 
 proc subCommandExec(): int =
+  # 設定ディレクトリがなければ作成して初期データのコマンドファイルを配置
   if not existsDir(confDir):
     createDir(confDir)
     let cmds = %* [{"name":"nim", "commands":["nim --version", "nimble build", "nimble test"]}]
     writeFile(cmdsFile, $cmds)
 
+  # コマンドファイルが存在しなければ異常終了
   if not existsFile(cmdsFile):
     stderr.writeLine("Please set commands to " & cmdsFile)
     return 1
 
+  # コマンドファイルからコマンドの一覧を取得
+  let datas = readFile(cmdsFile).parseJson.to(seq[CommandList])
+
+  # 初期設定。とりあえずやっとく
   illwillInit(fullscreen=true)
   setControlCHook(exitProc)
   hideCursor()
 
-  let datas = readFile(cmdsFile).parseJson.to(seq[CommandList])
+  var
+    pos: int              ## 現在のタブ内の選択要素のインデックス
+    tabIndex: int         ## 現在のタブのインデックス
+    cmdStack: seq[string] ## 選択されたコマンドのスタック
 
-  # 4. This is how the main event loop typically looks like: we keep polling for
-  # user input (keypress events), do something based on the input, modify the
-  # contents of the terminal buffer (if necessary), and then display the new
-  # frame.
   while true:
-    # 2. We will construct the next frame to be displayed in this buffer and then
-    # just instruct the library to display its contents to the actual terminal
-    # (double buffering is enabled by default; only the differences from the
-    # previous frame will be actually printed to the terminal).
-    var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
+    # 後から端末の幅が変わる場合があるため
+    # 端末の幅情報はループの都度取得
+    let tw = terminalWidth()
+    let th = terminalHeight()
 
-    # 3. Display some simple static UI that doesn't change from frame to frame.
+    var tb = newTerminalBuffer(tw, th)
     tb.setForegroundColor(fgWhite, true)
-    tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
+
+    # キー入力ヘルプエリアの描画
+    tb.drawRect(0, 0, tw-2, th-1)
     for i, help in keyHelps:
       tb.write(2, i+1, help)
 
-    tb.drawHorizLine(1, terminalWidth()-3, keyHelps.len+1, doubleStyle=true)
-    tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
+    # キーヘルプの境界線の描画
+    let tabAreaY = keyHelps.len + 1
+    tb.drawHorizLine(1, tw-3, tabAreaY, doubleStyle=true)
 
-    var tabs: seq[string]
-    for i, page in datas:
-      let name = page.name
-      let tab =
-        if i == tabIndex:
-          &"[ * {name} ]"
-        else:
-          &"[   {name} ]"
-      tabs.add(tab)
-    tb.write(2, keyHelps.len+1, tabs.join("-"))
+    # タブを描画
+    tb.drawTabArea(tabAreaY, tabIndex, datas)
 
+    # コマンド選択エリアとコマンドスタックの境界線の描画
+    let cmdStackAreaY = int(th/2) + 2
+    tb.drawHorizLine(1, tw-3, cmdStackAreaY-1, doubleStyle=true)
+
+    tb.resetAttributes()
+
+    # 現在のタブのコマンドリスト
     let currentCmds = datas[tabIndex].commands
 
+    # コマンド選択エリアの描画
+    tb.drawSelectionArea(tabAreaY+1, pos, currentCmds)
+
+    # コマンドスタックの描画
+    tb.drawCommandStackArea(cmdStackAreaY, cmdStack)
+
+    # キー入力でコマンド選択位置、タブindexを更新
+    # あるいはコマンドの実行など
     var key = getKey()
     case key
     of Key.None: discard
     of Key.Escape, Key.Q: exitProc()
     of Key.J:
+      # Cursor down
       inc(pos)
       if currentCmds.len <= pos:
         pos = 0
     of Key.K:
+      # Cursor up
       dec(pos)
       if pos < 0:
         pos = currentCmds.len - 1
     of Key.H:
+      # Move left tab
       pos = 0
       dec(tabIndex)
       if tabIndex < 0:
         tabIndex = datas.len - 1
     of Key.L:
+      # Move right tab
       pos = 0
       inc(tabIndex)
       if datas.len <= tabIndex:
         tabIndex = 0
     of Key.Space:
+      # 現在位置のコマンドをスタックに追加
       let cmd = currentCmds[pos]
       cmdStack.add(cmd)
     of Key.C:
+      # コマンドスタックを初期化
       cmdStack = @[]
     of Key.Enter:
-      exitProcExec(cmdStack)
+      # コマンドを実行して終了
+      execCommands(cmdStack)
     else: discard
-
-    tb.draw(datas[tabIndex].commands)
 
     tb.display()
     sleep(20)
@@ -165,5 +192,5 @@ when isMainModule:
     [subCommandExec, cmdName = "exec"],
     [subCommandEdit, cmdName = "edit"],
     [subCommandAdd, cmdName = "add"],
-    )
+  )
 
