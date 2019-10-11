@@ -6,15 +6,10 @@ const
   appName = "muse"
   confDir = getConfigDir() / appName
   cmdsFile = confDir / "commands.json"
-
-if not existsDir(confDir):
-  createDir(confDir)
-  let cmds = %* ["echo muse test", "echo muse test2"]
-  writeFile(cmdsFile, $cmds)
-
-if not existsFile(cmdsFile):
-  stderr.writeLine("Please set commands to " & cmdsFile)
-  quit(1)
+  version = """muse version 0.2.0
+Copyright (c) 2019 jiro4989
+Released under the MIT License.
+https://github.com/jiro4989/muse"""
 
 # 1. Initialise terminal in fullscreen mode and make sure we restore the state
 # of the terminal state when exiting.
@@ -34,29 +29,11 @@ proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
     status += exitCode
   quit(status)
 
-illwillInit(fullscreen=true)
-setControlCHook(exitProc)
-hideCursor()
-
-# 2. We will construct the next frame to be displayed in this buffer and then
-# just instruct the library to display its contents to the actual terminal
-# (double buffering is enabled by default; only the differences from the
-# previous frame will be actually printed to the terminal).
-var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
-
-let datas = readFile(cmdsFile).parseJson.to(seq[string])
-
-# 3. Display some simple static UI that doesn't change from frame to frame.
-tb.setForegroundColor(fgWhite, true)
-tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
-tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
-tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
-tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
 
 var pos: int
 var cmdPoses: seq[int]
 
-proc draw =
+proc draw(tb: var TerminalBuffer, datas: seq[string]) =
   # 選択候補のリストを表示
   for i, data in datas:
     let mark =
@@ -78,33 +55,85 @@ proc draw =
     let data2 = $i & " " & data
     tb.write(2, int(terminalHeight() / 2) + i + 1, data2)
 
-# 4. This is how the main event loop typically looks like: we keep polling for
-# user input (keypress events), do something based on the input, modify the
-# contents of the terminal buffer (if necessary), and then display the new
-# frame.
-while true:
-  var key = getKey()
-  case key
-  of Key.None: discard
-  of Key.Escape, Key.Q: exitProc()
-  of Key.J:
-    inc(pos)
-    if datas.len <= pos:
-      pos = 0
-  of Key.K:
-    dec(pos)
-    if pos < 0:
-      pos = datas.len - 1
-  of Key.Space:
-    cmdPoses.add(pos)
-  of Key.C:
-    cmdPoses = @[]
-  of Key.Enter:
-    let cmds = cmdPoses.mapIt(datas[it])
-    exitProcExec(cmds)
-  else: discard
-  draw()
 
-  tb.display()
-  sleep(20)
+proc subCommandExec(): int =
+  if not existsDir(confDir):
+    createDir(confDir)
+    let cmds = %* ["echo muse test", "echo muse test2"]
+    writeFile(cmdsFile, $cmds)
+
+  if not existsFile(cmdsFile):
+    stderr.writeLine("Please set commands to " & cmdsFile)
+    return 1
+
+  illwillInit(fullscreen=true)
+  setControlCHook(exitProc)
+  hideCursor()
+
+  # 2. We will construct the next frame to be displayed in this buffer and then
+  # just instruct the library to display its contents to the actual terminal
+  # (double buffering is enabled by default; only the differences from the
+  # previous frame will be actually printed to the terminal).
+  var tb = newTerminalBuffer(terminalWidth(), terminalHeight())
+
+  let datas = readFile(cmdsFile).parseJson.to(seq[string])
+
+  # 3. Display some simple static UI that doesn't change from frame to frame.
+  tb.setForegroundColor(fgWhite, true)
+  tb.drawRect(0, 0, terminalWidth()-2, terminalHeight()-2)
+  tb.write(2, 1, "J: Cursor down | K: Cursor up | C: Clear | Q: Exit | Space: Select | Enter: Execute")
+  tb.drawHorizLine(1, terminalWidth()-3, 2, doubleStyle=true)
+  tb.drawHorizLine(1, terminalWidth()-3, int(terminalHeight()/2), doubleStyle=true)
+
+  # 4. This is how the main event loop typically looks like: we keep polling for
+  # user input (keypress events), do something based on the input, modify the
+  # contents of the terminal buffer (if necessary), and then display the new
+  # frame.
+  while true:
+    var key = getKey()
+    case key
+    of Key.None: discard
+    of Key.Escape, Key.Q: exitProc()
+    of Key.J:
+      inc(pos)
+      if datas.len <= pos:
+        pos = 0
+    of Key.K:
+      dec(pos)
+      if pos < 0:
+        pos = datas.len - 1
+    of Key.Space:
+      cmdPoses.add(pos)
+    of Key.C:
+      cmdPoses = @[]
+    of Key.Enter:
+      let cmds = cmdPoses.mapIt(datas[it])
+      exitProcExec(cmds)
+    else: discard
+    tb.draw(datas)
+
+    tb.display()
+    sleep(20)
+
+proc subCommandEdit(): int =
+  execShellCmd(&"$EDITOR {cmdsFile}")
+
+proc subCommandAdd(args: seq[string]): int =
+  if args.len < 1:
+    stderr.writeLine("Must need 1 argument.")
+    return 1
+
+  let cmd = args.join(" ")
+  var cmds = readFile(cmdsFile).parseJson().to(seq[string])
+  cmds.add(cmd)
+  let obj = %* cmds
+  writeFile(cmdsFile, obj.pretty())
+
+when isMainModule:
+  import cligen
+  dispatchMulti(
+    [subCommandExec],
+    [subCommandEdit],
+    [subCommandAdd],
+    )
 
