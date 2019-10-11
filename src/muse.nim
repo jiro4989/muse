@@ -69,6 +69,7 @@ proc drawCommandStackArea(tb: var TerminalBuffer, y: int, datas: seq[string]) =
     tb.write(2, y+i, data2)
 
 proc subCommandExec(): int =
+  ## コマンド選択UIを起動する
   # 設定ディレクトリがなければ作成して初期データのコマンドファイルを配置
   if not existsDir(confDir):
     createDir(confDir)
@@ -173,18 +174,8 @@ proc subCommandExec(): int =
     sleep(20)
 
 proc subCommandEdit(): int =
+  ## 設定ファイルを編集する
   execShellCmd(&"$EDITOR {cmdsFile}")
-
-proc subCommandAdd(args: seq[string]): int =
-  if args.len < 1:
-    stderr.writeLine("Must need 1 argument.")
-    return 1
-
-  let cmd = args.join(" ")
-  var cmds = readFile(cmdsFile).parseJson().to(seq[string])
-  cmds.add(cmd)
-  let obj = %* cmds
-  writeFile(cmdsFile, obj.pretty())
 
 when isMainModule:
   import cligen
