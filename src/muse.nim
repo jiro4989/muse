@@ -182,6 +182,5 @@ when isMainModule:
   dispatchMulti(
     [subCommandExec, cmdName = "exec"],
     [subCommandEdit, cmdName = "edit"],
-    [subCommandAdd, cmdName = "add"],
   )
 
