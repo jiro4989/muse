@@ -24,8 +24,7 @@ proc exitProcExec(cmds: seq[string] =  @[]) {.noconv.} =
   var status: int
   for cmd in cmds:
     echo "$ " & cmd
-    let (output, exitCode) = execCmdEx(cmd)
-    stdout.write output
+    let exitCode = execShellCmd(cmd)
     status += exitCode
   quit(status)
 
