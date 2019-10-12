@@ -178,6 +178,8 @@ proc subCommandEdit(): int =
   execShellCmd(&"$EDITOR {cmdsFile}")
 
 when isMainModule:
+  if commandLineParams().len < 1:
+    quit subCommandExec()
   import cligen
   dispatchMulti(
     [subCommandExec, cmdName = "exec"],
