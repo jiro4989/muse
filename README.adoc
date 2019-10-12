@@ -2,7 +2,7 @@
 :toc: left
 :sectnums:
 
-The simple CLI tool to select commands on TUI and execute sequentially.
+The simple CLI tool to select multiple commands on TUI and execute sequentially.
 
 image:./doc/muse1.png[]
 
