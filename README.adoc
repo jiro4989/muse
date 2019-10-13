@@ -16,12 +16,12 @@ Run below.
 
 [source,bash]
 ----
-muse exec
+muse
 ----
 
 At first, `muse` displays default commands.
 Commands file was created at `$HOME/.config/muse/commands.json` when you run
-`muse exec`.
+`muse`.
 
 Next, you run below.
 
@@ -33,7 +33,7 @@ muse edit
 Open `commands.json` with your editor on Environment variables `EDITOR`.
 You edit the commands, and save the file.
 
-And you re-run `muse exec`.
+And you re-run `muse`.
 
 == Install
 
