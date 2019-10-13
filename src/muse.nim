@@ -181,6 +181,7 @@ when isMainModule:
   if commandLineParams().len < 1:
     quit subCommandExec()
   import cligen
+  clCfg.version = version
   dispatchMulti(
     [subCommandExec, cmdName = "exec"],
     [subCommandEdit, cmdName = "edit"],
